@@ -4,7 +4,7 @@ description: "Distill a politician into an AI Skill. Collect speeches, voting re
 argument-hint: "[politician-name-or-slug]"
 version: "1.0.0"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Bash
+allowed-tools: Read, Write, Edit, Bash, WebFetch
 ---
 
 > **Language / 語言**: This skill supports both English and Chinese. Detect the user's language from their first message and respond in the same language throughout. Below are instructions in both languages — follow the one matching the user's language.
@@ -110,6 +110,33 @@ allowed-tools: Read, Write, Edit, Bash
 8. **民調數據** — 公眾如何看他
 9. **對手的攻擊** — 反向推斷弱點
 
+#### 政治資產映射
+
+把原本「同事的週報/PRD/聊天記錄」替換為「政治人物的政治資產」：
+
+| 同事 Skill 原材料 | 政治人物 Skill 對應物 | 主要提取內容 |
+|------------------|----------------------|--------------|
+| 週報/項目復盤 | 法案投票記錄、提案、行政決策 | 真實利益取向、政策底線、立場演變 |
+| 會議發言 | 公開演說、辯論稿、質詢記錄 | 修辭風格、敘事框架、攻防手法 |
+| 群聊/私聊 | 社交媒體、訪談、記者會 | 突發反應、非正式語氣、壓力下的直覺 |
+| 同事評價 | 媒體評論、對手攻擊、民調 | 外部觀感、弱點、爭議標籤 |
+
+#### 證據權重規則
+
+分析時按以下優先級處理衝突：
+
+1. **法案投票記錄/行政決策**：最高權重。當口號與投票相衝突時，以投票和決策為準。
+2. **政策白皮書/競選綱領**：正式立場。用於補足投票尚未覆蓋的議題。
+3. **公開演說/辯論/質詢**：修辭與政治定位。用於提取語言風格和敘事框架。
+4. **社交媒體/訪談/記者會**：即時反應。用於提取直覺、情緒、危機應對。
+5. **媒體評論/對手攻擊/民調**：只作驗證或反向推斷，不能單獨作為核心結論。
+
+每個關鍵結論必須標註來源類型和可信度：
+- `硬證據`：投票、正式決策、已發布政策文件
+- `公開表述`：演說、辯論、訪談、社媒原文
+- `外部觀察`：媒體、民調、對手評價
+- `推斷`：材料不足時由標籤或模式推導，必須明確標註
+
 ---
 
 #### 方式 A：上傳文件
@@ -155,16 +182,20 @@ allowed-tools: Read, Write, Edit, Bash
 - 參考 `${CLAUDE_SKILL_DIR}/prompts/political_analyzer.md` 中的提取維度
 - 提取：政策立場、投票記錄、修辭能力、政治操作手法
 - 根據職位類型重點提取（元首/立法者/地方首長/在野領袖不同側重）
+- 建立「政治資產台帳」：每條核心立場都要連到投票、決策、演說或訪談來源
+- 當投票記錄與公開話術衝突時，標註為「利益取向 vs 公開敘事」而不是抹平差異
 
 **線路 B（Political Persona）**：
 - 參考 `${CLAUDE_SKILL_DIR}/prompts/politician_persona_analyzer.md` 中的提取維度
 - 將用戶填寫的標籤翻譯為具體行為規則（參見標籤翻譯表）
 - 從原材料中提取：公眾表達風格、決策模式、政治人際行為
+- 將標籤寫成 `#現實主義`、`#民粹主義`、`#鷹派`、`#鴿派` 等可檢索形式
+- 為政治光譜給出坐標和依據：經濟左/右、威權/自由兩軸，不確定時標註置信度
 
 ### Step 4：生成並預覽
 
 參考 `${CLAUDE_SKILL_DIR}/prompts/political_builder.md` 生成 Political Capability 內容。
-參考 `${CLAUDE_SKILL_DIR}/prompts/politician_persona_builder.md` 生成 Persona 內容（5 層結構）。
+參考 `${CLAUDE_SKILL_DIR}/prompts/politician_persona_builder.md` 生成 Persona 內容（6 層結構）。
 
 向用戶展示摘要（各 5-8 行），詢問：
 ```
@@ -172,6 +203,7 @@ Political Capability 摘要：
   - 核心立場：{xxx}
   - 修辭風格：{xxx}
   - 政治操作：{xxx}
+  - 最硬證據：{投票/決策/政策文件}
   ...
 
 Persona 摘要：
@@ -179,6 +211,7 @@ Persona 摘要：
   - 表達風格：{xxx}
   - 決策模式：{xxx}
   - 政治光譜：經濟 {X}/5，權威 {Y}/5
+  - 標籤：#{tag1} #{tag2} #{tag3}
   ...
 
 確認生成？還是需要調整？
@@ -194,6 +227,8 @@ mkdir -p politicians/{slug}/versions
 mkdir -p politicians/{slug}/sources/speeches
 mkdir -p politicians/{slug}/sources/votes
 mkdir -p politicians/{slug}/sources/media
+mkdir -p politicians/{slug}/sources/interviews
+mkdir -p politicians/{slug}/sources/policies
 ```
 
 **2. 寫入 political.md**（用 Write 工具）：
@@ -226,6 +261,19 @@ mkdir -p politicians/{slug}/sources/media
   "tags": {
     "ideology": [...],
     "style": [...]
+  },
+  "source_weights": {
+    "votes": "highest",
+    "policy_documents": "high",
+    "speeches_debates": "medium",
+    "social_interviews": "medium",
+    "media_opponents_polls": "validation_only"
+  },
+  "evidence_counts": {
+    "hard_evidence": 0,
+    "public_statements": 0,
+    "external_observations": 0,
+    "inferences": 0
   },
   "impression": "{impression}",
   "knowledge_sources": [...已導入文件列表],
@@ -264,6 +312,16 @@ user-invocable: true
 
 ---
 
+## PART C：證據與邊界
+
+- 最高權重證據：{投票記錄/行政決策/政策文件摘要}
+- 公開表述來源：{演說/辯論/訪談/社媒摘要}
+- 外部觀察來源：{媒體/民調/對手攻擊摘要}
+- 推斷項：{所有沒有硬證據支撐、僅由標籤或模式推導的規則}
+- 禁止事項：不得假裝擁有未提供的資料；不得把外部評論寫成該政治人物自己的立場
+
+---
+
 ## 運行規則
 
 1. 先由 PART B 判斷：用什麼態度和立場回應這個議題？
@@ -271,6 +329,8 @@ user-invocable: true
 3. 輸出時始終保持 PART B 的表達風格
 4. PART B Layer 0 的規則優先級最高，任何情況下不得違背
 5. 回應政策議題時，必須符合 PART A 中的政策立場和投票記錄
+6. 當投票/決策與演說口號衝突時，以投票/決策為立場底座，以演說口號為包裝話術
+7. 沒有證據的內容只能標註為推斷，不得偽裝成事實
 ```
 
 告知用戶：
@@ -296,7 +356,7 @@ user-invocable: true
 
 1. 按 Step 2 的方式讀取新內容
 2. 用 `Read` 讀取現有 `politicians/{slug}/political.md` 和 `persona.md`
-3. 參考 `${CLAUDE_SKILL_DIR}/prompts/merger.md` 分析增量內容
+3. 參考 `${CLAUDE_SKILL_DIR}/prompts/politician_merger.md` 分析增量內容
 4. 存檔當前版本（用 Bash）：
    ```bash
    python3 ${CLAUDE_SKILL_DIR}/tools/version_manager.py --action backup --slug {slug} --base-dir ./politicians
@@ -311,7 +371,7 @@ user-invocable: true
 
 用戶表達「不對」/「他的立場應該是」時：
 
-1. 參考 `${CLAUDE_SKILL_DIR}/prompts/correction_handler.md` 識別糾正內容
+1. 參考 `${CLAUDE_SKILL_DIR}/prompts/politician_correction_handler.md` 識別糾正內容
 2. 判斷屬於 Political（政策/修辭）還是 Persona（性格/風格）
 3. 生成 correction 記錄
 4. 用 `Edit` 工具追加到對應文件的 `## Correction 記錄` 節
@@ -441,6 +501,33 @@ Based on the type of materials the user provides, suggest the most valuable supp
 8. **Polling data** — public perception
 9. **Opponent attacks** — reverse-engineer weaknesses
 
+#### Political Asset Mapping
+
+Replace the original "colleague weekly reports / PRDs / chat logs" with "politician political assets":
+
+| Colleague Skill source | Politician Skill equivalent | Primary extraction target |
+|------------------------|-----------------------------|---------------------------|
+| Weekly reports / retrospectives | Legislative votes, bills, executive decisions | Real interest alignment, policy red lines, position evolution |
+| Meeting comments | Public speeches, debate transcripts, hearings | Rhetorical style, narrative frames, attack/defense tactics |
+| Chats / DMs | Social media, interviews, press conferences | Instinctive reactions, informal voice, pressure response |
+| Peer feedback | Media commentary, opponent attacks, polling | External perception, weaknesses, contested labels |
+
+#### Evidence Weighting Rules
+
+Resolve conflicts using this priority order:
+
+1. **Legislative votes / executive decisions**: highest weight. When slogans conflict with votes, use votes and decisions as the baseline.
+2. **Policy papers / campaign platforms**: formal positions. Use them to cover issues not represented in votes.
+3. **Public speeches / debates / hearings**: rhetoric and positioning. Use them for language style and narrative frames.
+4. **Social media / interviews / press conferences**: immediate reactions. Use them for instinct, emotion, and crisis behavior.
+5. **Media commentary / opponent attacks / polling**: validation or reverse inference only; never use as sole support for a core conclusion.
+
+Every key conclusion must include source type and confidence:
+- `hard_evidence`: votes, formal decisions, published policy documents
+- `public_statement`: speeches, debates, interviews, social posts
+- `external_observation`: media, polling, opponent claims
+- `inference`: derived from tags or patterns when evidence is thin; must be marked explicitly
+
 ---
 
 #### Option A: Upload Files
@@ -486,16 +573,20 @@ Combine all collected materials and user-provided info, analyze along two tracks
 - Refer to `${CLAUDE_SKILL_DIR}/prompts/political_analyzer.md` for extraction dimensions
 - Extract: policy positions, voting records, rhetorical capability, political operations
 - Emphasize different aspects by position type (head of state/legislator/local leader/opposition)
+- Build a political asset ledger: every core position should link to a vote, decision, speech, or interview source
+- When voting records and public rhetoric conflict, mark it as "interest alignment vs public narrative" instead of smoothing over the contradiction
 
 **Track B (Political Persona)**:
 - Refer to `${CLAUDE_SKILL_DIR}/prompts/politician_persona_analyzer.md` for extraction dimensions
 - Translate user-provided tags into concrete behavior rules (see tag translation table)
 - Extract from materials: public expression style, decision patterns, political interpersonal behavior
+- Write tags in searchable form, such as `#realist`, `#populist`, `#hawk`, `#dove`
+- Provide spectrum coordinates and evidence: economic left/right and authority/liberty axes; mark confidence when uncertain
 
 ### Step 4: Generate and Preview
 
 Use `${CLAUDE_SKILL_DIR}/prompts/political_builder.md` to generate Political Capability content.
-Use `${CLAUDE_SKILL_DIR}/prompts/politician_persona_builder.md` to generate Persona content (5-layer structure).
+Use `${CLAUDE_SKILL_DIR}/prompts/politician_persona_builder.md` to generate Persona content (6-layer structure).
 
 Show the user a summary (5-8 lines each), ask:
 ```
@@ -503,6 +594,7 @@ Political Capability Summary:
   - Core positions: {xxx}
   - Rhetorical style: {xxx}
   - Political operations: {xxx}
+  - Hardest evidence: {votes/decisions/policy documents}
   ...
 
 Persona Summary:
@@ -510,6 +602,7 @@ Persona Summary:
   - Expression style: {xxx}
   - Decision pattern: {xxx}
   - Political spectrum: Economic {X}/5, Authority {Y}/5
+  - Tags: #{tag1} #{tag2} #{tag3}
   ...
 
 Confirm generation? Or need adjustments?
@@ -525,6 +618,8 @@ mkdir -p politicians/{slug}/versions
 mkdir -p politicians/{slug}/sources/speeches
 mkdir -p politicians/{slug}/sources/votes
 mkdir -p politicians/{slug}/sources/media
+mkdir -p politicians/{slug}/sources/interviews
+mkdir -p politicians/{slug}/sources/policies
 ```
 
 **2. Write political.md** (Write tool):
@@ -557,6 +652,19 @@ Content:
   "tags": {
     "ideology": [...],
     "style": [...]
+  },
+  "source_weights": {
+    "votes": "highest",
+    "policy_documents": "high",
+    "speeches_debates": "medium",
+    "social_interviews": "medium",
+    "media_opponents_polls": "validation_only"
+  },
+  "evidence_counts": {
+    "hard_evidence": 0,
+    "public_statements": 0,
+    "external_observations": 0,
+    "inferences": 0
   },
   "impression": "{impression}",
   "knowledge_sources": [...imported file list],
@@ -595,6 +703,16 @@ Political Spectrum: Economic {X}/5, Authority {Y}/5
 
 ---
 
+## PART C: Evidence and Boundaries
+
+- Highest-weight evidence: {voting records / executive decisions / policy document summary}
+- Public statement sources: {speeches / debates / interviews / social media summary}
+- External observation sources: {media / polling / opponent attack summary}
+- Inferred items: {all rules inferred only from tags or patterns without hard evidence}
+- Prohibitions: do not pretend to have unseen materials; do not present external commentary as the politician's own position
+
+---
+
 ## Execution Rules
 
 1. PART B decides first: what attitude and stance to take on this issue?
@@ -602,6 +720,8 @@ Political Spectrum: Economic {X}/5, Authority {Y}/5
 3. Always maintain PART B's expression style in output
 4. PART B Layer 0 rules have the highest priority and must never be violated
 5. When responding to policy issues, must align with PART A's policy positions and voting record
+6. When votes/decisions conflict with slogans, use votes/decisions as the stance baseline and slogans as rhetorical packaging
+7. Content without evidence may only be marked as inference; never present it as fact
 ```
 
 Inform user:
@@ -627,7 +747,7 @@ When user provides new materials:
 
 1. Read new content using Step 2 methods
 2. `Read` existing `politicians/{slug}/political.md` and `persona.md`
-3. Refer to `${CLAUDE_SKILL_DIR}/prompts/merger.md` for incremental analysis
+3. Refer to `${CLAUDE_SKILL_DIR}/prompts/politician_merger.md` for incremental analysis
 4. Archive current version (Bash):
    ```bash
    python3 ${CLAUDE_SKILL_DIR}/tools/version_manager.py --action backup --slug {slug} --base-dir ./politicians
@@ -642,7 +762,7 @@ When user provides new materials:
 
 When user expresses "that's wrong" / "his position should be":
 
-1. Refer to `${CLAUDE_SKILL_DIR}/prompts/correction_handler.md` to identify correction content
+1. Refer to `${CLAUDE_SKILL_DIR}/prompts/politician_correction_handler.md` to identify correction content
 2. Determine if it belongs to Political (policy/rhetoric) or Persona (personality/style)
 3. Generate correction record
 4. Use `Edit` tool to append to the `## Correction Log` section of the relevant file
