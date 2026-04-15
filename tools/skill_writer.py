@@ -37,11 +37,14 @@ user-invocable: true
 
 # {name}
 
-{identity}
+{identity}  
+{tags}
 
 ---
 
-## PART A：工作能力
+## PART A：政治資產與立場
+
+> 包含核心法案傾向、利益取向與核心票倉邏輯。
 
 {work_content}
 
@@ -147,12 +150,15 @@ def create_skill(
     name = meta.get("name", slug)
     identity = build_identity_string(meta)
 
+    tags = " ".join([f"#{t}" for t in meta.get("tags", [])])
+
     skill_md = SKILL_MD_TEMPLATE.format(
         slug=slug,
         name=name,
         identity=identity,
         work_content=work_content,
         persona_content=persona_content,
+        tags=tags
     )
     (skill_dir / "SKILL.md").write_text(skill_md, encoding="utf-8")
 
