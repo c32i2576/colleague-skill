@@ -1,6 +1,7 @@
 # Generated colleague skills (user data, not committed)
 colleagues/
 !colleagues/example_zhangsan/
+politicians/
 
 # Python
 __pycache__/

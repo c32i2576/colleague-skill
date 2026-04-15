@@ -123,6 +123,8 @@ pip3 install -r requirements.txt
 
 ## Usage
 
+### Create a Colleague Skill
+
 In Claude Code, type:
 
 ```
@@ -133,7 +135,21 @@ Follow the prompts: enter an alias, company/level (e.g. `ByteDance L2-1 backend 
 
 Once created, invoke the colleague Skill with `/{slug}`.
 
-### Commands
+### Create a Politician Skill
+
+In Claude Code, type:
+
+```
+/create-politician
+```
+
+Follow the prompts: enter a name or alias, country/party/position/active era, political profile tags, and political spectrum hints. Then provide source materials such as speeches, debate transcripts, voting records, policy papers, interviews, press conferences, or social media posts.
+
+The politician generator treats votes, bills, executive decisions, and formal policy documents as the highest-weight evidence. Speeches and debates shape rhetoric; social media and interviews capture instinctive reactions; media commentary and opponent attacks are used only as validation or weak inference.
+
+Once created, invoke the politician Skill with `/{slug}`.
+
+### Colleague Commands
 
 | Command | Description |
 |---------|-------------|
@@ -143,6 +159,17 @@ Once created, invoke the colleague Skill with `/{slug}`.
 | `/{slug}-persona` | Persona only |
 | `/colleague-rollback {slug} {version}` | Rollback to a previous version |
 | `/delete-colleague {slug}` | Delete |
+
+### Politician Commands
+
+| Command | Description |
+|---------|-------------|
+| `/list-politicians` | List all politician Skills |
+| `/{slug}` | Invoke full Skill (Political Capability + Persona) |
+| `/{slug}-political` | Political capability only |
+| `/{slug}-persona` | Persona only |
+| `/politician-rollback {slug} {version}` | Rollback to a previous version |
+| `/delete-politician {slug}` | Delete |
 
 ---
 
@@ -185,6 +212,16 @@ Each colleague Skill has two parts that work together:
 
 Execution: `Receive task → Persona decides attitude → Work Skill executes → Output in their voice`
 
+Each politician Skill has three parts:
+
+| Part | Content |
+|------|---------|
+| **Part A — Political Capability** | Policy positions, voting/decision patterns, rhetorical arsenal, political operations |
+| **Part B — Political Persona** | 6-layer persona: hard rules → identity/spectrum → expression → decisions → political relationships → evidence boundaries |
+| **Part C — Evidence & Boundaries** | Highest-weight evidence, public statements, external observations, inferred items, source limits |
+
+Execution: `Receive political prompt → Persona chooses posture → Political Capability supplies stance and tactics → Evidence rules keep claims grounded`
+
 ### Supported Tags
 
 **Personality**: Responsible · Blame-shifter · Perfectionist · Good-enough · Procrastinator · PUA master · Office politician · Managing-up expert · Passive-aggressive · Flip-flopper · Quiet · Read-no-reply …
@@ -208,6 +245,7 @@ This project follows the [AgentSkills](https://agentskills.io) open standard. Th
 ```
 create-colleague/
 ├── SKILL.md              # Skill entry point (official frontmatter)
+├── POLITICIAN_SKILL.md   # Politician Skill entry point
 ├── prompts/              # Prompt templates
 │   ├── intake.md         #   Dialogue-based info collection
 │   ├── work_analyzer.md  #   Work capability extraction
@@ -215,7 +253,14 @@ create-colleague/
 │   ├── work_builder.md   #   work.md generation template
 │   ├── persona_builder.md #   persona.md 5-layer structure
 │   ├── merger.md         #   Incremental merge logic
-│   └── correction_handler.md # Conversation correction handler
+│   ├── correction_handler.md # Conversation correction handler
+│   ├── politician_intake.md  # Political figure intake
+│   ├── political_analyzer.md # Political capability extraction
+│   ├── politician_persona_analyzer.md # Political persona extraction
+│   ├── political_builder.md # political.md generation template
+│   ├── politician_persona_builder.md # persona.md 6-layer template
+│   ├── politician_merger.md # Political incremental merge logic
+│   └── politician_correction_handler.md # Political correction handler
 ├── tools/                # Python tools
 │   ├── feishu_auto_collector.py  # Feishu auto-collector
 │   ├── feishu_browser.py         # Feishu browser method
@@ -226,6 +271,7 @@ create-colleague/
 │   ├── skill_writer.py           # Skill file management
 │   └── version_manager.py        # Version archive & rollback
 ├── colleagues/           # Generated colleague Skills (gitignored)
+├── politicians/          # Generated politician Skills (gitignored)
 ├── docs/PRD.md
 ├── requirements.txt
 └── LICENSE

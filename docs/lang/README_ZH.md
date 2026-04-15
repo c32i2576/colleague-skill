@@ -128,6 +128,8 @@ pip3 install -r requirements.txt
 
 ## 使用
 
+### 创建同事 Skill
+
 在 Claude Code 中输入：
 
 ```
@@ -138,7 +140,21 @@ pip3 install -r requirements.txt
 
 完成后用 `/{slug}` 调用该同事 Skill。
 
-### 管理命令
+### 创建政治人物 Skill
+
+在 Claude Code 中输入：
+
+```
+/create-politician
+```
+
+按提示输入政治人物的姓名/代号、国家/政党/职位/活跃年代、政治风格标签和政治光谱线索。然后提供原材料，例如公开演说、辩论稿、法案投票记录、政策文件、访谈、记者会或社交媒体内容。
+
+政治人物生成器会把投票记录、法案、行政决策和正式政策文件视为最高权重证据。演说和辩论用于提取修辞风格；社交媒体和访谈用于捕捉直觉反应；媒体评论和对手攻击只作为验证或弱推断来源。
+
+完成后用 `/{slug}` 调用该政治人物 Skill。
+
+### 同事管理命令
 
 | 命令 | 说明 |
 |------|------|
@@ -148,6 +164,17 @@ pip3 install -r requirements.txt
 | `/{slug}-persona` | 仅人物性格 |
 | `/colleague-rollback {slug} {version}` | 回滚到历史版本 |
 | `/delete-colleague {slug}` | 删除 |
+
+### 政治人物管理命令
+
+| 命令 | 说明 |
+|------|------|
+| `/list-politicians` | 列出所有政治人物 Skill |
+| `/{slug}` | 调用完整 Skill（Political Capability + Persona） |
+| `/{slug}-political` | 仅政治能力 |
+| `/{slug}-persona` | 仅政治人格 |
+| `/politician-rollback {slug} {version}` | 回滚到历史版本 |
+| `/delete-politician {slug}` | 删除 |
 
 ---
 
@@ -188,6 +215,16 @@ pip3 install -r requirements.txt
 
 运行逻辑：`接到任务 → Persona 判断态度 → Work Skill 执行 → 用他的语气输出`
 
+每个政治人物 Skill 由三部分组成：
+
+| 部分 | 内容 |
+|------|------|
+| **Part A — Political Capability** | 政策立场、投票/决策模式、修辞武器库、政治操作手册 |
+| **Part B — Political Persona** | 6 层政治人格：硬规则 → 身份/光谱 → 表达风格 → 决策模式 → 政治人际 → 证据边界 |
+| **Part C — 证据与边界** | 最高权重证据、公开表述、外部观察、推断项、资料限制 |
+
+运行逻辑：`接到政治议题 → Persona 判断姿态 → Political Capability 提供立场与战术 → 证据规则约束输出`
+
 ### 支持的标签
 
 **个性**：认真负责 · 甩锅高手 · 完美主义 · 差不多就行 · 拖延症 · PUA 高手 · 职场政治玩家 · 向上管理专家 · 阴阳怪气 · 反复横跳 · 话少 · 只读不回 …
@@ -211,6 +248,7 @@ pip3 install -r requirements.txt
 ```
 create-colleague/
 ├── SKILL.md              # skill 入口（官方 frontmatter）
+├── POLITICIAN_SKILL.md   # 政治人物 skill 入口
 ├── prompts/              # Prompt 模板
 │   ├── intake.md         #   对话式信息录入
 │   ├── work_analyzer.md  #   工作能力提取
@@ -218,7 +256,14 @@ create-colleague/
 │   ├── work_builder.md   #   work.md 生成模板
 │   ├── persona_builder.md #   persona.md 五层结构模板
 │   ├── merger.md         #   增量 merge 逻辑
-│   └── correction_handler.md # 对话纠正处理
+│   ├── correction_handler.md # 对话纠正处理
+│   ├── politician_intake.md  # 政治人物信息录入
+│   ├── political_analyzer.md # 政治能力提取
+│   ├── politician_persona_analyzer.md # 政治人格提取
+│   ├── political_builder.md # political.md 生成模板
+│   ├── politician_persona_builder.md # persona.md 六层结构模板
+│   ├── politician_merger.md # 政治人物增量 merge 逻辑
+│   └── politician_correction_handler.md # 政治人物对话纠正处理
 ├── tools/                # Python 工具
 │   ├── feishu_auto_collector.py  # 飞书全自动采集
 │   ├── feishu_browser.py         # 飞书浏览器方案
@@ -229,6 +274,7 @@ create-colleague/
 │   ├── skill_writer.py           # Skill 文件管理
 │   └── version_manager.py        # 版本存档与回滚
 ├── colleagues/           # 生成的同事 Skill（gitignored）
+├── politicians/          # 生成的政治人物 Skill（gitignored）
 ├── docs/PRD.md
 ├── requirements.txt
 └── LICENSE
