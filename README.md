@@ -94,21 +94,29 @@ These are independent open-source projects — this project does not include the
 
 ### Claude Code
 
-> **Important**: Claude Code looks for skills in `.claude/skills/` at the **git repo root**. Make sure you run this in the right place.
+> **Important**: Claude Code looks for skills in `.claude/skills/{name}/SKILL.md`. The repo now ships **two independent skills** under `skills/`. Install each one separately.
 
 ```bash
-# Install to current project (run at git repo root)
+# Project-level install (run at your git repo root)
 mkdir -p .claude/skills
-git clone https://github.com/titanwings/colleague-skill .claude/skills/create-colleague
+git clone https://github.com/titanwings/colleague-skill /tmp/colleague-skill-src
+cp -r /tmp/colleague-skill-src/skills/create-colleague   .claude/skills/
+cp -r /tmp/colleague-skill-src/skills/create-politician  .claude/skills/
 
-# Or install globally (available in all projects)
-git clone https://github.com/titanwings/colleague-skill ~/.claude/skills/create-colleague
+# Or global install (available in all projects)
+git clone https://github.com/titanwings/colleague-skill /tmp/colleague-skill-src
+cp -r /tmp/colleague-skill-src/skills/create-colleague   ~/.claude/skills/
+cp -r /tmp/colleague-skill-src/skills/create-politician  ~/.claude/skills/
 ```
+
+After install, restart Claude Code so `/create-colleague` and `/create-politician` are registered as slash commands.
 
 ### OpenClaw
 
 ```bash
-git clone https://github.com/titanwings/colleague-skill ~/.openclaw/workspace/skills/create-colleague
+git clone https://github.com/titanwings/colleague-skill /tmp/colleague-skill-src
+cp -r /tmp/colleague-skill-src/skills/create-colleague   ~/.openclaw/workspace/skills/
+cp -r /tmp/colleague-skill-src/skills/create-politician  ~/.openclaw/workspace/skills/
 ```
 
 ### Dependencies (optional)
@@ -135,7 +143,7 @@ Follow the prompts: enter an alias, company/level (e.g. `ByteDance L2-1 backend 
 
 Once created, invoke the colleague Skill with `/{slug}`.
 
-### Create a Politician Skill
+### Create a Politician Skill (v2 — Nuwa-style)
 
 In Claude Code, type:
 
@@ -143,11 +151,20 @@ In Claude Code, type:
 /create-politician
 ```
 
-Follow the prompts: enter a name or alias, country/party/position/active era, political profile tags, and political spectrum hints. Then provide source materials such as speeches, debate transcripts, voting records, policy papers, interviews, press conferences, or social media posts.
+**v2 flow** (inspired by [nuwa-skill](https://github.com/alchaincyf/nuwa-skill)):
 
-The politician generator treats votes, bills, executive decisions, and formal policy documents as the highest-weight evidence. Speeches and debates shape rhetoric; social media and interviews capture instinctive reactions; media commentary and opponent attacks are used only as validation or weak inference.
+1. **3-question intake** — slug, basic info (country/party/position/era), initial profile
+2. **Source strategy** — user-provided / **six-agent parallel auto-research** / hybrid
+3. **Six-track research** (optional) — speeches, votes/decisions, social media, media critique, interviews/bio, timeline — all written to `research/` inside the skill dir
+4. **Three-fold validation** — each candidate mental model must pass: cross-domain appearance (≥2 issues) + generative power (predicts new issues) + distinctiveness (non-obvious for this ideology)
+5. **Build** — 3-7 mental models + 5-10 decision heuristics + quantified Expression DNA + **honest limitations** (what this Skill cannot do)
+6. **Quality gates** — known-stance match / edge-case test / voice check before writing
+
+Votes and executive decisions are the highest-weight evidence; speeches shape rhetoric; social media captures instinctive reactions; media commentary is validation only. Vote-vs-slogan conflicts are **preserved, not smoothed over** — votes form the stance baseline, slogans the rhetorical wrapper.
 
 Once created, invoke the politician Skill with `/{slug}`.
+
+See `references/extraction-framework.md` for the full methodology and `references/skill-template.md` for the output template.
 
 ### Colleague Commands
 
@@ -212,15 +229,18 @@ Each colleague Skill has two parts that work together:
 
 Execution: `Receive task → Persona decides attitude → Work Skill executes → Output in their voice`
 
-Each politician Skill has three parts:
+Each politician Skill (v2 schema) has six parts:
 
 | Part | Content |
 |------|---------|
-| **Part A — Political Capability** | Policy positions, voting/decision patterns, rhetorical arsenal, political operations |
-| **Part B — Political Persona** | 6-layer persona: hard rules → identity/spectrum → expression → decisions → political relationships → evidence boundaries |
-| **Part C — Evidence & Boundaries** | Highest-weight evidence, public statements, external observations, inferred items, source limits |
+| **Part A — Mental Models** | 3-7 thinking frameworks validated via cross-domain / generative / distinctiveness tests |
+| **Part B — Decision Heuristics** | 5-10 case-backed triggerable rules |
+| **Part C — Expression DNA** | Quantified sentence fingerprint, style spectrum, verbal tics, forbidden words, signature narratives, audience switching |
+| **Part D — Evidence & Honest Limitations** | Hard-evidence summary, vote-vs-slogan tensions, inferred items, **explicit "this Skill cannot do X" list**, research cutoff date |
+| **Part E — Execution Rules** | Runtime priority: blindspot check → mental model → heuristic → hard evidence → DNA |
+| **Part F — Sources** | Primary (this person's output), secondary (others), key quotes |
 
-Execution: `Receive political prompt → Persona chooses posture → Political Capability supplies stance and tactics → Evidence rules keep claims grounded`
+Execution: `Blindspot check → Mental model selects framework → Heuristics check for triggered rules → Hard evidence sets baseline → Expression DNA shapes voice`
 
 ### Supported Tags
 
@@ -240,42 +260,48 @@ Execution: `Receive political prompt → Persona chooses posture → Political C
 
 ## Project Structure
 
-This project follows the [AgentSkills](https://agentskills.io) open standard. The entire repo is a skill directory:
+This project follows the [AgentSkills](https://agentskills.io) open standard. The repo now hosts **two independent skills** under `skills/` so each can be installed separately into `.claude/skills/`:
 
 ```
-create-colleague/
-├── SKILL.md              # Skill entry point (official frontmatter)
-├── POLITICIAN_SKILL.md   # Politician Skill entry point
-├── prompts/              # Prompt templates
-│   ├── intake.md         #   Dialogue-based info collection
-│   ├── work_analyzer.md  #   Work capability extraction
-│   ├── persona_analyzer.md #  Personality extraction (with tag translation)
-│   ├── work_builder.md   #   work.md generation template
-│   ├── persona_builder.md #   persona.md 5-layer structure
-│   ├── merger.md         #   Incremental merge logic
-│   ├── correction_handler.md # Conversation correction handler
-│   ├── politician_intake.md  # Political figure intake
-│   ├── political_analyzer.md # Political capability extraction
-│   ├── politician_persona_analyzer.md # Political persona extraction
-│   ├── political_builder.md # political.md generation template
-│   ├── politician_persona_builder.md # persona.md 6-layer template
-│   ├── politician_merger.md # Political incremental merge logic
-│   └── politician_correction_handler.md # Political correction handler
-├── tools/                # Python tools
-│   ├── feishu_auto_collector.py  # Feishu auto-collector
-│   ├── feishu_browser.py         # Feishu browser method
-│   ├── feishu_mcp_client.py      # Feishu MCP method
-│   ├── dingtalk_auto_collector.py # DingTalk auto-collector
-│   ├── slack_auto_collector.py   # Slack auto-collector
-│   ├── email_parser.py           # Email parser
-│   ├── skill_writer.py           # Skill file management
-│   └── version_manager.py        # Version archive & rollback
-├── colleagues/           # Generated colleague Skills (gitignored)
-├── politicians/          # Generated politician Skills (gitignored)
-├── docs/PRD.md
-├── requirements.txt
-└── LICENSE
+colleague-skill/                           # repo root (this is NOT a skill dir)
+├── README.md, LICENSE, INSTALL.md, ROADMAP.md, CONTRIBUTING.md
+├── docs/, requirements.txt, colleague_skill.pdf
+├── tools/                                 # canonical shared Python tools (mirrored into each skill)
+│
+├── skills/
+│   ├── create-colleague/                  # ← install this dir as .claude/skills/create-colleague
+│   │   ├── SKILL.md                       # entry point (frontmatter: name=create-colleague)
+│   │   ├── prompts/
+│   │   │   ├── intake.md
+│   │   │   ├── work_analyzer.md
+│   │   │   ├── work_builder.md
+│   │   │   ├── persona_analyzer.md
+│   │   │   ├── persona_builder.md
+│   │   │   ├── merger.md
+│   │   │   └── correction_handler.md
+│   │   └── tools/                         # copy of repo-root tools/
+│   │
+│   └── create-politician/                 # ← install as .claude/skills/create-politician
+│       ├── SKILL.md                       # entry point (frontmatter: name=create-politician, v2)
+│       ├── prompts/
+│       │   ├── politician_intake.md
+│       │   ├── political_analyzer.md
+│       │   ├── political_builder.md
+│       │   ├── politician_persona_analyzer.md
+│       │   ├── politician_persona_builder.md
+│       │   ├── politician_merger.md
+│       │   └── politician_correction_handler.md
+│       ├── references/                    # v2 methodology
+│       │   ├── extraction-framework.md    #   Three-fold validation, Expression DNA, six-track research
+│       │   └── skill-template.md          #   Output SKILL.md template (PART A-F)
+│       ├── examples/                      # pre-distilled gallery
+│       └── tools/                         # copy of repo-root tools/
+│
+├── colleagues/                            # Generated colleague Skills (gitignored, output dir)
+└── politicians/                           # Generated politician Skills (gitignored, output dir)
 ```
+
+**Why duplicate `tools/` into each skill?** Each `${CLAUDE_SKILL_DIR}` resolves to the skill's own folder, so scripts referenced as `${CLAUDE_SKILL_DIR}/tools/*.py` must live inside the skill. The repo-root `tools/` is the canonical source; `skills/*/tools/` are mirrors kept in sync via `cp -r tools skills/{name}/tools`.
 
 ---
 
